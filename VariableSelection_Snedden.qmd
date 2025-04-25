@@ -1,0 +1,478 @@
+---
+title: "VariableSelection_Snedden"
+author: "Madeline Snedden"
+format: pdf
+---
+
+# The Dataset
+
+This comes from the New York State Department of Environmental Conservation (NYSDEC), which from 2022-2024 collected data on the location and usage of medium- and heavy-duty vehicles operated by private and government entities throughout the state of New York. The goal of this project was to inform zero-emission vehicle infrastructure planning decisions.
+
+```{r}
+nycars <- read.csv("nycars_clean.csv")
+nycars$OrgID <- as.factor(nycars$OrgID)
+nycars$ParentBodyID <- as.factor(nycars$ParentBodyID)
+nycars$NAICSCode <- as.factor(nycars$NAICSCode)
+nycars$NAICS_2 <- as.factor(nycars$NAICS_2)
+nycars$FacilityID <- as.factor(nycars$FacilityID)
+nycars$FacilityZIP <- as.factor(nycars$FacilityZIP)
+nycars$DieselInfrastructure <- as.factor(nycars$DieselInfrastructure)
+nycars$GasolineInfrastructure <- as.factor(nycars$GasolineInfrastructure)
+nycars$NGInfrastructure <- as.factor(nycars$NGInfrastructure)
+nycars$ChargingInfrastructure <- as.factor(nycars$ChargingInfrastructure)
+nycars$HydrogenInfrastructure <- as.factor(nycars$HydrogenInfrastructure)
+nycars$OtherInfrastructure <- as.factor(nycars$OtherInfrastructure)
+nycars$WeightClassBinCode <- as.factor(nycars$WeightClassBinCode)
+nycars$FF_Infrastructure <- as.factor(nycars$FF_Infrastructure)
+nycars$Alt_Infrastructure <- as.factor(nycars$Alt_Infrastructure)
+```
+
+## Data Collection Methodology
+
+Medium- and heavy-duty vehicles are defined as vehicles with a gross-vehicle weight rating of 8,500 pounds or more. Entities who operated these vehicles completed a reporting form at <https://dec.ny.gov/environmental-protection/air-quality/controlling-motor-vehicle-pollution/heavy-duty-vehicles#ACT.> A guidance document is also available at this website, but because this data is all self-reported, some errors may exist.
+
+There are several fields in the reporting form where entities could enter free text to explain their answers; NYSDEC staff used these comments to update some data fields and annotated the entry to mark those fields as changed.
+
+The reporting form also has fields for personal information (such as names, phone numbers, email addresses), which have been redacted in the public dataset. Confidential business information that was submitted with the reporting form has also been redacted upon request.
+
+## Results
+
+The final dataset consists of 13,213 entries for 70 variables, including:
+
+-   Identifiers (IDs, names, parent companies) (not using)
+
+-   Organization characteristics (industry, ownership, jurisdiction)
+
+    ```{r}
+    nycars$Revenue2021 <- factor(nycars$Revenue2021, levels=c("N/A", "Less than $10M", "$10-$49M", "$50-$99M", "$100-$499M", "$500-999M", "More than $1000M"))
+
+    industries <- data.frame(
+      code = c('11', '21', '22', '23', '31',
+               '42', '44', '48', '51', '52', 
+               '53', '54', '55', '56', '61', 
+               '62', '71', '72', '81', '92','99'), 
+      def = c('Agriculture', 'Mining', 'Utilities', 'Construction', 'Manufacturing',
+              'Wholesale', 'Retail','Transportation','Information','Finance',
+              'RealEstate','Science','Management','WasteManagement','EducationalServices',
+              'HealthCare','ArtsEntertainment','Accommodation','Other','PublicAdministration','NotDefined'))
+
+    library(vtable)
+    sumtable(nycars, vars=c("OrgType", "Revenue2021"), group="LEM")
+
+    sumtable(nycars, vars="NAICS_2", group="LEM", labels=industries)
+
+    ```
+
+-   How many entities they deliver to, how many subhaulers are contracted, and the number of vehicles operated by those subhaulers
+
+    ```{r}
+    nycars$ContractedEntities <- factor(nycars$ContractedEntities, levels=c("N/A", "1 to 10", "11 to 20", "20 to 50", "More than 50"))
+
+    nycars$SubhaulersContracted <- factor(nycars$SubhaulersContracted, levels=c("N/A", "1 to 10", "11 to 20", "20 to 50", "More than 50"))
+
+    nycars$SubhaulerVehicleCount <- factor(nycars$SubhaulerVehicleCount, levels=c("N/A", "0", "1 to 10", "11 to 20", "20 to 99", "100 to 500", "More than 500"))
+
+    sumtable(nycars,vars=c("ContractedEntities","SubhaulersContracted","SubhaulerVehicleCount"),group="LEM")
+    ```
+
+-   Whether they have a sustainability plan, and whether that plan addresses options to reduce transportation emissions specifically
+
+    ```{r}
+    sumtable(nycars,vars=c("SustainabilityPlan","SustainabilityPlanTransportationEmissions"),group="LEM")
+    ```
+
+-   Facility location information and geospatial data (not using)
+
+-   Utility provider
+
+    ```{r}
+    nycars$FacilityType <- factor(nycars$FacilityType)
+    nycars$UtilityProvider <- factor(nycars$UtilityProvider)
+
+    sumtable(nycars,vars=c("FacilityType","OwnedLeased","UtilityProvider"),group="LEM")
+    ```
+
+-   **Whether the facility has diesel, gasoline, natural gas, electric vehicle charging, hydrogen fueling, or any other type of fueling infrastructure (I'm interested in these as a main outcome)**
+
+    ```{r}
+    hist(c(nycars$FF_Sum), main="Histogram of number of fossil fuel infrastructure types at a facility")
+    hist(c(nycars$Alt_Sum), main = "Histogram of number of low emissions fuel infrastructure types at a facility")
+    hist(c(nycars$Sum_Sum), main = "Histogram of number of any fuel infrastructure types at a facility")
+
+    sumtable(nycars_mult,vars=c("GasolineInfrastructure","DieselInfrastructure","NGInfrastructure","OtherInfrastructure","FF_Infrastructure"),group="LEM")
+    ```
+
+-   Whether the facility hosts any of the following types of trailers: tractor, van-dry, van-reefer, tanker, flatbed, shipping container, low-bed, curtain
+
+    ```{r}
+    sumtable(nycars,vars=c("TractorTrailers","VanDryTrailers","VanReeferTrailers", "TankerTrailers","FlatbedTrailers", "ShippingContainerTrailers","LowBedTrailers", "CurtainTrailers"),group="LEM")
+    ```
+
+-   Vehicle characteristics (primary fuel type, weight class, body type, equipped with GPS or all wheel drive, are model year 2010 or older, are retrofitted or repowered, whether they are owned or brokered, years kept, whether it is designated as a backup vehicle)
+
+    ```{r}
+    nycars$BodyType <- factor(nycars$BodyType)
+    nycars$FuelType <- factor(nycars$FuelType)
+    nycars$WeightClassBin <- factor(nycars$WeightClassBin)
+
+    sumtable(nycars,vars=c("WeightClassBin","FuelType","OwnerBroker"),group="LEM")
+
+
+    sumtable(nycars,vars=c("GPSMileageTracking", "AllWheelDrive","MY2010Older","RetrofittedRepowered", "YearsKept"),group="LEM", add.median=TRUE)
+
+    library(tidyverse)
+     ggplot(data=nycars, aes(x=log(GPSMileageTracking))) +
+        geom_histogram() + 
+       facet_wrap(~nycars$LEM, nrow=1)
+      
+       ggplot(data=nycars, aes(x=log(AllWheelDrive))) +
+        geom_histogram() + 
+       facet_wrap(~nycars$LEM, nrow=1)
+       
+        ggplot(data=nycars, aes(x=log(MY2010Older))) +
+        geom_histogram() + 
+       facet_wrap(~nycars$LEM, nrow=1)
+        
+         ggplot(data=nycars, aes(x=log(RetrofittedRepowered))) +
+        geom_histogram() + 
+       facet_wrap(~nycars$LEM, nrow=1)
+         
+          ggplot(data=nycars, aes(x=log(YearsKept))) +
+        geom_histogram() + 
+       facet_wrap(~nycars$LEM, nrow=1)
+
+
+    boxplot(log(nycars$YearsKept)~nycars$LEM)
+    ```
+
+-   Daily and annual mileage, and what fraction of those occur in New York State
+
+    ```{r}
+    sumtable(nycars,vars=c("NumberOfVehicles", "NumberBelow100mi","NumberBetween100and150mi","NumberBetween150and200mi", "NumberBetween200and300mi", "NumberMoreThan300mi", "AverageAnnualMiles"),group="LEM", add.median=TRUE)
+
+    ggplot(data=nycars, aes(x=log(NumberOfVehicles))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+    ggplot(data=nycars, aes(x=log(NumberBetween100and150mi))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+    ggplot(data=nycars, aes(x=log(NumberBetween150and200mi))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+    ggplot(data=nycars, aes(x=log(NumberBetween200and300mi))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+    ggplot(data=nycars, aes(x=log(NumberMoreThan300mi))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+
+    boxplot(log(nycars$AverageAnnualMiles)~nycars$LEM)
+
+    ggplot(data=nycars, aes(x=log(PredictableUsagePattern))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+    ggplot(data=nycars, aes(x=log(FuelAtHome))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+    ggplot(data=nycars, aes(x=log(ReturnToHome))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+    ggplot(data=nycars, aes(x=log(Within50mi))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+    ggplot(data=nycars, aes(x=log(TowMoreThan100mi))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+    ggplot(data=nycars, aes(x=log(AtWeightLimit))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+    ggplot(data=nycars, aes(x=log(Parked8Hours))) +
+      geom_histogram() + 
+      facet_wrap(~nycars$LEM, nrow=1)
+
+
+
+    ```
+
+-   Daily use patterns (whether they have predictable use patterns, fuel at the facility, return to the facility at the end of the day, park at least 8 hours at the facility, operate at their weight limit, how far from the facility they travel)
+
+With the exception of the geospatial data, number of vehicles operated, and the number of years the vehicle has been kept, the rest of the data are all categorical variables - some are binary (whether the facility has natural gas infrastructure); others are ordinal (average daily mileage has been binned into 4 levels); some are non-ordinal, non-binary categorical (is the organization a government agency, private company, or public benefit corporation).
+
+# Proposed Analysis
+
+The proposed primary outcomes are whether the facility has low-emissions fueling infrastructure, and which type of low-emissions fuel (hydrogen, electric).
+
+Because these data were entered by hand, I anticipate some data cleaning will be necessary (for instance, the variable 'Owner or Broker' has entries for both 'owner' and 'owned').
+
+-   Done in Excel.
+
+Some variables have so many levels that it would be prudent to condense them into broader categories. This includes 'NAICS Code', with 154 levels. I will create a new variable that uses the first two digits of the 'NAICS Code' variable to sort them into the 20 sectors used by the [North American Industry Classification System](https://www.census.gov/naics/?58967?yearbck=2022) - still unwieldy, but more manageable than before. I do not plan to use location information (addresses, zip codes, geospatial coordinates) or parent organization identifiers (463 levels).
+
+-   Done in Excel.
+
+I would first run some descriptive statistics (mean, SD, median) and summary tables to see the frequency of each response for the remaining variables. Entries that skipped the questions on fueling infrastructure will be excluded from the final regression, but will be included in this exploratory analysis to see if there are any differences in other predictors compared to organizations who *did* report fueling infrastructure data.
+
+I will examine the correlation between the predictors and four response variables: whether they have (1) electric vehicle charging infrastructure, (2) hydrogen fueling infrastructure, or (3) any of those 2 low-emissions fueling infrastructures. I will also look for correlations between different predictors to identify potential interaction terms. For continuous data, I will examine their distributions with regard to the response variables to determine whether polynomial terms should be added.
+
+The results of the planned exploratory analyses will inform how I build (1) a logistic regression to predict whether a facility has low-emissions fueling/charging infrastructure, and (2) a multinomial logistic regression to predict which type of infrastructure is used. Because I don't have any background in this field, I plan to use stepwise variable selection with AIC criterion on a maximum model, which will help prevent bias by me accidentally leaving out significant predictors otherwise. I will evaluate the fit of my models by examining residuals (and checking for overdispersion, which could prompt using beta-binomial regression instead), accuracy, and ROC.
+
+## Multinomial Regression
+
+```{r}
+# remove all vars not needed in any model
+nycars <- nycars %>% select(-c(OrgID, OrgName, ParentBodyID, ParentBodyName, NAICSCode, NAICS_2, FMCSABrokerAuthority, OutOfStateVehiclesOperatedInNYS, FacilityID, FacilityStreet, FacilityCity, FacilityState, FacilityZIP, VehicleFleetSector, WeightClassBinCode, FractionOfMilesInNYS, VehicleComments, Georeference, UtilityProvider))
+
+# remove fueling vars not needed for THIS model
+nycars_mult <- nycars %>% select(-c(Sum_Infrastructure, Alt_Sum, Sum_Sum, Alt_Infrastructure, LEM2, ChargingInfrastructure, HydrogenInfrastructure))
+
+# set "none" as baseline
+nycars_mult$LEM <- relevel(factor(nycars_mult$LEM), ref="None")
+
+nycars_mult <- na.omit(nycars_mult)
+
+library(caret)
+set.seed(923)
+trainIndex <- createDataPartition(nycars_mult$LEM, p =0.5,
+                                        list = FALSE,
+                                        times =1)
+nycars_mult_train <- nycars_mult[trainIndex,]
+nycars_mult_test <- nycars_mult[-trainIndex,]
+
+# creating 4 different sets of explanatory variables + outcome to test which vars are significant without taking a week to run the regression
+ny_1m <- nycars_mult_train %>% select(OrgType, GovJurisdiction, Revenue2021, NAICS_Name, SustainabilityPlan, SustainabilityPlanTransportationEmissions, FacilityType, OwnedLeased, LEM)
+# Removed due to preventing model convergence: ContractedEntities, SubhaulersContracted, SubhaulerVehicleCount
+## Not significant: OrgType, SustainabilityPlanTransportationEmissions, GovernmentJurisdiction
+## Significant: Revenue2021, NAICS_Name, SustainabilityPlan, SustainabilityPlan, FacilityType, OwnedLeased
+
+ny_2m <- nycars_mult_train %>% select(DieselInfrastructure, GasolineInfrastructure, NGInfrastructure, OtherInfrastructure, LEM)
+## Not significant: TractorTrailers, VanDryTrailers, VanReeferTrailers, TankerTrailers, FlatbedTrailers, ShippingContainerTrailers, LowBedTrailers, CurtainTrailers
+## Significant: Everything else
+
+ny_3m <- nycars_mult_train %>% select(BodyType, FuelType, WeightClassBin, NumberOfVehicles, NumberBelow100mi, NumberBetween100and150mi, NumberBetween150and200mi, NumberBetween200and300mi, NumberMoreThan300mi, AverageAnnualMiles, LEM)
+## Not significant: BodyType, WeightClassBin
+## Significant: Everything else
+
+
+ny_4m <- nycars_mult_train %>% select(PredictableUsagePattern, FuelAtHome, ReturnToHome, Within50mi, TowMoreThan100mi, AtWeightLimit, Parked8Hours, GPSMileageTracking, AllWheelDrive, Backup, MY2010Older, RetrofittedRepowered, YearsKept, OwnerBroker,LEM)
+
+library(nnet)
+
+mod_1m_max <- multinom(LEM ~ ., 
+           ny_1m, 
+           family = binomial()) 
+summary(mod_1m_max)
+mod_1m_best <- suppressWarnings(step(mod_1m_max, direction="both",trace=0))
+summary(mod_1m_best)
+## include: 
+## Revenue2021, NAICS_Name, SustainabilityPlan, SustainabilityPlan, FacilityType, OwnedLeased
+## remove: 
+## OrgType, SustainabilityPlanTransportationEmissions, GovernmentJurisdiction
+
+mod_2m_max <- multinom(LEM ~ ., 
+           ny_2m, 
+           family = binomial()) 
+mod_2m_best <- suppressWarnings(step(mod_2m_max, direction="both",trace=0))
+summary(mod_2m_best)
+## include: 
+## DieselInfrastructure, GasolineInfrastructure, NGInfrastructure, OtherInfrastructure
+## Remove:
+## TractorTrailers, VanDryTrailers, VanReeferTrailers, TankerTrailers, FlatbedTrailers, ShippingContainerTrailers, LowBedTrailers, CurtainTrailers
+
+mod_3m_max <- multinom(LEM ~ ., 
+           ny_3m, 
+           family = binomial()) 
+mod_3m_best <- suppressWarnings(step(mod_3m_max, direction="both",trace=0))
+summary(mod_3m_best)
+## include: FuelType, NumberOfVehicles, NumberBelow100mi, NumberBetween100and150mi, NumberBetween150and200mi, NumberBetween200and300mi, NumberMoreThan300mi, AverageAnnualMiles
+## 
+## remove: 
+##  BodyType, WeightClassBin, 
+
+
+mod_4m_max <- multinom(LEM ~ ., 
+           ny_4m, 
+           family = binomial()) 
+mod_4m_best <- suppressWarnings(step(mod_4m_max, direction="both",trace=0))
+summary(mod_4m_best)
+## include: 
+## PredictableUsagePattern, FuelAtHome, ReturnToHome, Within50mi, Parked8Hours, AtWeightLimit, GPSMileageTracking, AllWheelDrive, Backup, 
+## remove: 
+## TowMoreThan100mi, MY2010Older, RetrofittedRepowered, YearsKept, OwnerBroker
+
+ny_short <- nycars_mult_train %>% select(Revenue2021, NAICS_Name, SustainabilityPlan, FacilityType, OwnedLeased, DieselInfrastructure, GasolineInfrastructure, NGInfrastructure, OtherInfrastructure, FuelType, NumberOfVehicles, NumberBelow100mi, NumberBetween100and150mi, NumberBetween150and200mi, NumberBetween200and300mi, NumberMoreThan300mi, AverageAnnualMiles, PredictableUsagePattern, FuelAtHome, ReturnToHome, Within50mi, Parked8Hours, AtWeightLimit, GPSMileageTracking, AllWheelDrive, Backup, LEM)
+
+# Can't go all in on all interactions - multinom() refuses to run (too many weights)
+# Check for interactions manually
+library(plotly)
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~NumberBelow100mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~NumberBetween100and150mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~NumberBetween150and200mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~NumberBetween200and300mi, z=~LEM) # add interaction!!!
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~NumberMoreThan300mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~AverageAnnualMiles, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~PredictableUsagePattern, z=~LEM) # add interaction!!!
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~FuelAtHome, z=~LEM) # add interaction!!!
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~ReturnToHome, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~Within50mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~Parked8Hours, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~AtWeightLimit, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~AllWheelDrive, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberOfVehicles, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~NumberBetween100and150mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~NumberBetween150and200mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~NumberBetween200and300mi, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~NumberMoreThan300mi, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~AverageAnnualMiles, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~PredictableUsagePattern, z=~LEM) # add interaction!!!
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~FuelAtHome, z=~LEM) # add interaction!!!
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~ReturnToHome, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~Within50mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~Parked8Hours, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~AtWeightLimit, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~AllWheelDrive, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBelow100mi, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~NumberBetween150and200mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~NumberBetween200and300mi, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~NumberMoreThan300mi, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~AverageAnnualMiles, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~PredictableUsagePattern, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~FuelAtHome, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~ReturnToHome, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~Within50mi, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~Parked8Hours, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~AtWeightLimit, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~AllWheelDrive, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween100and150mi, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~NumberBetween200and300mi, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~NumberMoreThan300mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~AverageAnnualMiles, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~PredictableUsagePattern, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~FuelAtHome, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~ReturnToHome, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~Within50mi, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~Parked8Hours, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~AtWeightLimit, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~AllWheelDrive, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween150and200mi, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~NumberMoreThan300mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~AverageAnnualMiles, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~PredictableUsagePattern, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~FuelAtHome, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~ReturnToHome, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~Within50mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~Parked8Hours, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~AtWeightLimit, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~GPSMileageTracking, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~AllWheelDrive, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberBetween200and300mi, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~NumberMoreThan300mi, y= ~AverageAnnualMiles, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberMoreThan300mi, y= ~PredictableUsagePattern, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberMoreThan300mi, y= ~FuelAtHome, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberMoreThan300mi, y= ~ReturnToHome, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberMoreThan300mi, y= ~Within50mi, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberMoreThan300mi, y= ~Parked8Hours, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberMoreThan300mi, y= ~AtWeightLimit, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberMoreThan300mi, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~NumberMoreThan300mi, y= ~AllWheelDrive, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~NumberMoreThan300mi, y= ~Backup, z=~LEM) # no
+
+# plot_ly(nycars_mult_train, x= ~AverageAnnualMiles, y= ~PredictableUsagePattern, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~AverageAnnualMiles, y= ~FuelAtHome, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~AverageAnnualMiles, y= ~ReturnToHome, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~AverageAnnualMiles, y= ~Within50mi, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~AverageAnnualMiles, y= ~Parked8Hours, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~AverageAnnualMiles, y= ~AtWeightLimit, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~AverageAnnualMiles, y= ~GPSMileageTracking, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~AverageAnnualMiles, y= ~AllWheelDrive, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~AverageAnnualMiles, y= ~Backup, z=~LEM) # no
+
+# plot_ly(nycars_mult_train, x= ~PredictableUsagePattern, y= ~FuelAtHome, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~PredictableUsagePattern, y= ~ReturnToHome, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~PredictableUsagePattern, y= ~Within50mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~PredictableUsagePattern, y= ~Parked8Hours, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~PredictableUsagePattern, y= ~AtWeightLimit, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~PredictableUsagePattern, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~PredictableUsagePattern, y= ~AllWheelDrive, z=~LEM) # no
+# plot_ly(nycars_mult_train, x= ~PredictableUsagePattern, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~FuelAtHome, y= ~ReturnToHome, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~FuelAtHome, y= ~Within50mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~FuelAtHome, y= ~Parked8Hours, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~FuelAtHome, y= ~AtWeightLimit, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~FuelAtHome, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~FuelAtHome, y= ~AllWheelDrive, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~FuelAtHome, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~ReturnToHome, y= ~Within50mi, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~ReturnToHome, y= ~Parked8Hours, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~ReturnToHome, y= ~AtWeightLimit, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~ReturnToHome, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~ReturnToHome, y= ~AllWheelDrive, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~ReturnToHome, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~Within50mi, y= ~Parked8Hours, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~Within50mi, y= ~AtWeightLimit, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~Within50mi, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~Within50mi, y= ~AllWheelDrive, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~Within50mi, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~Parked8Hours, y= ~AtWeightLimit, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~Parked8Hours, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~Parked8Hours, y= ~AllWheelDrive, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~Parked8Hours, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~AtWeightLimit, y= ~GPSMileageTracking, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~AtWeightLimit, y= ~AllWheelDrive, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~AtWeightLimit, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~GPSMileageTracking, y= ~AllWheelDrive, z=~LEM) # add interaction
+# plot_ly(nycars_mult_train, x= ~GPSMileageTracking, y= ~Backup, z=~LEM) # add interaction
+
+# plot_ly(nycars_mult_train, x= ~AllWheelDrive, y= ~Backup, z=~LEM) # no
+
+
+mod_short <- multinom(LEM ~ . + NumberOfVehicles:NumberBelow100mi + NumberOfVehicles:NumberBetween100and150mi + NumberOfVehicles:NumberBetween150and200mi + NumberOfVehicles:NumberBetween200and300mi + NumberOfVehicles:NumberMoreThan300mi + NumberOfVehicles:AverageAnnualMiles + NumberOfVehicles:PredictableUsagePattern + NumberOfVehicles:FuelAtHome + NumberOfVehicles:ReturnToHome + NumberOfVehicles:Within50mi + NumberOfVehicles:Parked8Hours + NumberOfVehicles:AtWeightLimit + NumberOfVehicles:GPSMileageTracking + NumberOfVehicles:AllWheelDrive + NumberOfVehicles:Backup + NumberBelow100mi:NumberBetween100and150mi + NumberBelow100mi:NumberBetween150and200mi + NumberBelow100mi:AverageAnnualMiles + NumberBelow100mi:PredictableUsagePattern + NumberBelow100mi:FuelAtHome + NumberBelow100mi:ReturnToHome + NumberBelow100mi:Within50mi + NumberBelow100mi:Parked8Hours + NumberBelow100mi:AtWeightLimit + NumberBelow100mi:GPSMileageTracking + NumberBelow100mi:AllWheelDrive + NumberBelow100mi:Backup + NumberBetween100and150mi:NumberBetween150and200mi + NumberBetween100and150mi:AverageAnnualMiles + NumberBetween100and150mi:Parked8Hours + NumberBetween100and150mi:AtWeightLimit + NumberBetween100and150mi:Backup + NumberBetween150and200mi:NumberMoreThan300mi + NumberBetween150and200mi:Parked8Hours + NumberBetween150and200mi:AtWeightLimit + NumberBetween150and200mi:GPSMileageTracking + NumberBetween150and200mi:Backup + NumberBetween200and300mi:AtWeightLimit + NumberBetween200and300mi:Backup + NumberBetween200and300mi:NumberMoreThan300mi + NumberBetween200and300mi:AverageAnnualMiles + NumberBetween200and300mi:PredictableUsagePattern + NumberBetween200and300mi:FuelAtHome + NumberBetween200and300mi:ReturnToHome + NumberBetween200and300mi:Within50mi + NumberBetween200and300mi:Parked8Hours + NumberMoreThan300mi:PredictableUsagePattern + NumberMoreThan300mi:FuelAtHome + NumberMoreThan300mi:ReturnToHome + NumberMoreThan300mi:AtWeightLimit + NumberMoreThan300mi:GPSMileageTracking + PredictableUsagePattern:FuelAtHome + PredictableUsagePattern:ReturnToHome + PredictableUsagePattern:Within50mi + PredictableUsagePattern:Parked8Hours + PredictableUsagePattern:GPSMileageTracking + PredictableUsagePattern:Backup + FuelAtHome:ReturnToHome + FuelAtHome:Within50mi + FuelAtHome:Parked8Hours + FuelAtHome:AtWeightLimit + FuelAtHome:GPSMileageTracking + FuelAtHome:AllWheelDrive + FuelAtHome:Backup + ReturnToHome:Parked8Hours + ReturnToHome:AtWeightLimit + ReturnToHome:GPSMileageTracking + ReturnToHome:AllWheelDrive + ReturnToHome:Backup + ReturnToHome:Within50mi + Within50mi:Parked8Hours + Within50mi:AtWeightLimit + Within50mi:GPSMileageTracking + Within50mi:AllWheelDrive + Within50mi:Backup + Parked8Hours:AtWeightLimit + Parked8Hours:GPSMileageTracking + Parked8Hours:AllWheelDrive + Parked8Hours:Backup + AtWeightLimit:GPSMileageTracking + AtWeightLimit:AllWheelDrive + AtWeightLimit:Backup + GPSMileageTracking:AllWheelDrive + GPSMileageTracking:Backup, 
+           ny_short, 
+           family = binomial()) 
+mod_short_best <- suppressWarnings(step(mod_short, direction="both",trace=0))
+summary(mod_short_best)
+# include: 
+## NAICS_Name, SustainabilityPlan, FacilityType, OwnedLeased, DieselInfrastructure, GasolineInfrastructure, NGInfrastructure, OtherInfrastructure, FuelType, NumberOfVehicles,  PredictableUsagePattern, FuelAtHome, Within50mi, AtWeightLimit, GPSMileageTracking, 
+# remove: 
+## Revenue2021, NumberBelow100mi, NumberBetween100and150mi, NumberBetween150and200mi, NumberBetween200and300mi, NumberMoreThan300mi, AverageAnnualMiles, ReturnToHome, Parked8Hours, AllWheelDrive, Backup
+
+#mod_best <- step(mod_max)
+
+actual <- factor(nycars_mult_test$LEM)
+pred <- factor(predict(mod_short_best, nycars_mult_test),c("Electric","Hydrogen","None"))
+print(confusionMatrix(pred,actual))
+
+# Not helpful to plot residuals here
+# plot(fitted(mod_short_best),residuals(mod_short_best))
+# plot(residuals(mod_short_best))
+# plot(residuals(mod_short_best,type="pearson"))
+
+# checking for multicollinearity in this fashion was also pointless
+#library(car)
+#vif(mod_short_best)
+```
